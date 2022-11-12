@@ -12,7 +12,7 @@ public class Main {
         eventHandlers.addHandler(NewMessageReceived.class, newMessageEventHandler2);
         eventHandlers.addHandler(NewMessageReceived.class, newMessageEventHandler3);
 
-        Thread.sleep(2000);
+        Thread.sleep(15000);
 
         final var newMessageReceived = new NewMessageReceived("Hello World");
 
