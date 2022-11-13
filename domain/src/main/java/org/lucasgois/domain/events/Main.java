@@ -1,6 +1,9 @@
 package org.lucasgois.domain.events;
 
 
+import org.lucasgois.domain.events.handlers.EventHandlers;
+import org.lucasgois.domain.events.handlers.NewMessageEventHandler;
+
 public class Main {
     public static void main(String[] args) throws InterruptedException {
         final var newMessageEventHandler1 = new NewMessageEventHandler();

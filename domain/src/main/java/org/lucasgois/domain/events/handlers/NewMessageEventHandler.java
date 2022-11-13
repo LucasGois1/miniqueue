@@ -1,25 +1,27 @@
-package org.lucasgois.domain.events;
+package org.lucasgois.domain.events.handlers;
 
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
+import org.lucasgois.domain.events.NewMessageReceived;
+import org.lucasgois.domain.events.exceptions.EventNotProcessedException;
 
 @Slf4j
 @ToString
-public class NewMessageEventHandler extends Handler<NewMessageReceived>{
+public class NewMessageEventHandler extends Handler<NewMessageReceived> {
 
     @Override
     public void handle(final NewMessageReceived event) {
 
         log.info("Handling event: {}", event);
 
+        log.info("Processing event: {}", event);
         try {
-            log.info("Processing event: {}", event);
             Thread.sleep(8000);
-        } catch (InterruptedException e) {
+        } catch (final InterruptedException e) {
             throw new RuntimeException(e);
         }
 
-        log.info("End of processing event: {}", event);
+        throw new EventNotProcessedException(event);
     }
 
     @Override

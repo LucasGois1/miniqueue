@@ -1,6 +1,7 @@
 package org.lucasgois.server;
 
 import lombok.extern.slf4j.Slf4j;
+import org.lucasgois.server.comunication.ClientComunicationInitilizer;
 
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -29,15 +30,17 @@ public class Server {
         while (serverIsRunning) {
             final Socket socket = serverSocket.accept();
 
-            log.info("Client connected: " + socket.getInetAddress().getHostAddress());
+            final var client = new Client(socket);
 
-            dispatch(socket);
+            log.info("Client connected: " + client.getFullAddress());
+
+            dispatch(client);
         }
     }
 
-    private void dispatch(final Socket socket) {
-        pool.submit(new ClientHandler(socket));
+    private void dispatch(final Client client) {
+        pool.submit(new ClientComunicationInitilizer(client));
 
-        log.info("Client dispatched: " + socket.getInetAddress().getHostAddress());
+        log.info("Client dispatched: " + client.getFullAddress());
     }
 }

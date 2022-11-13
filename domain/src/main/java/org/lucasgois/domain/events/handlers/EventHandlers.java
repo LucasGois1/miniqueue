@@ -1,19 +1,38 @@
-package org.lucasgois.domain.events;
+package org.lucasgois.domain.events.handlers;
+
+import lombok.extern.slf4j.Slf4j;
+import org.lucasgois.domain.events.BaseEvent;
+import org.lucasgois.domain.events.thread.EventThreadExceptionHandler;
+import org.lucasgois.domain.events.thread.HandlerThreadFactory;
 
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.*;
 
+@Slf4j
 @SuppressWarnings("unchecked")
 public class EventHandlers {
 
-    private final ExecutorService executorService = Executors.newCachedThreadPool();
+    private final Map<String, BlockingQueue<BaseEvent<?>>> events;
+    private final Map<String, List<Handler<BaseEvent<?>>>> handlers;
 
-    private final Map<String, BlockingQueue<BaseEvent<?>>> events = new ConcurrentHashMap<>();
-    private final Map<String, List<Handler<BaseEvent<?>>>> handlers = new ConcurrentHashMap<>();
+    private final ExecutorService executorService;
+
+    public EventHandlers() {
+        this.events = new ConcurrentHashMap<>();
+        this.handlers = new ConcurrentHashMap<>();
+
+        final var exceptionHandler = new EventThreadExceptionHandler(this);
+        final var threadFactory = new HandlerThreadFactory(exceptionHandler);
+
+        this.executorService = Executors.newFixedThreadPool(10, threadFactory);
+    }
+
 
     public <T extends BaseEvent<?>> void addHandler(final Class<T> event, final Handler<T> handler) {
+        log.info("Adding handler: {} for event: {}", handler, event.getSimpleName());
+
         final List<Handler<BaseEvent<?>>> handlersOfThisEvent = getHandlersOfThisEvent(event);
 
         handlersOfThisEvent.add((Handler<BaseEvent<?>>) handler);
@@ -24,6 +43,8 @@ public class EventHandlers {
     }
 
     private <T extends BaseEvent<?>> List<Handler<BaseEvent<?>>> getHandlersOfThisEvent(final Class<T> event) {
+        log.info("Retrieving all handlers interested in event: {}", event.getName());
+
         var handlersOfThisEvent = handlers.get(event.getName());
 
         if (Objects.isNull(handlersOfThisEvent)) {
@@ -34,20 +55,38 @@ public class EventHandlers {
     }
 
     void removeHandler(final Class<BaseEvent<?>> eventType, final Handler<?> handler) {
+        log.info("Removing handler: {}", handler);
+
         handlers
                 .get(eventType.getName())
                 .remove(handler);
     }
 
-    void submitNewEvent(final BaseEvent<?> event) {
+    public void submitNewEvent(final BaseEvent<?> event) {
+        log.info("Adding new event to your respective Queue: {}", event);
+
         final BlockingQueue<BaseEvent<?>> queueOfThisEvent = getQueueOfThisEvent(event.getClass().getName());
 
-        queueOfThisEvent.add(event);
+        queueOfThisEvent.offer(event);
 
         events.put(event.getClass().getName(), queueOfThisEvent);
     }
 
+    public void resubmitEvent(final BaseEvent<?> event) {
+        log.info("Trying to resubmit event: {}", event);
+
+        final BlockingQueue<BaseEvent<?>> queueOfThisEvent = getQueueOfThisEvent(event.getClass().getName());
+
+        final var resubmitTask = new ResubmitEventTask(event, queueOfThisEvent);
+
+        log.info("ResubmitEventTask created: {}", resubmitTask);
+
+        executorService.execute(resubmitTask);
+    }
+
     <T extends BaseEvent<?>> void initializeHandler(final Handler<T> handler) {
+        log.info("Initializing handler: {}", handler.getClass().getSimpleName());
+
         final var eventOfMyInterest = handler.getEventInterests();
         final var myQueue = getQueueOfThisEvent(eventOfMyInterest.getName());
 
@@ -55,10 +94,12 @@ public class EventHandlers {
 
         handler.observe((BlockingQueue<T>) myQueue);
 
-        executorService.submit(handler);
+        executorService.execute(handler);
     }
 
     private BlockingQueue<BaseEvent<?>> getQueueOfThisEvent(final String eventOfMyInterest) {
+        log.info("Getting queue of event: {}", eventOfMyInterest);
+
         var myQueue = events.get(eventOfMyInterest);
 
         if (Objects.isNull(myQueue)) {
@@ -69,6 +110,8 @@ public class EventHandlers {
     }
 
     void reset() {
+        log.info("Finishing service");
+
         events.clear();
         handlers.clear();
         executorService.shutdownNow();

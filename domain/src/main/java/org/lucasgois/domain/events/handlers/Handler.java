@@ -1,7 +1,8 @@
-package org.lucasgois.domain.events;
+package org.lucasgois.domain.events.handlers;
 
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
+import org.lucasgois.domain.events.BaseEvent;
 
 import java.util.concurrent.BlockingQueue;
 
@@ -16,7 +17,6 @@ public abstract class Handler<T extends BaseEvent<?>> implements Runnable {
     public void run() {
 
         try {
-
             log.info("Starting handler: {}", this.getClass().getSimpleName());
 
             while (true) {
@@ -27,7 +27,7 @@ public abstract class Handler<T extends BaseEvent<?>> implements Runnable {
                 handle(event);
             }
 
-        } catch (final Exception e) {
+        } catch (final InterruptedException e) {
             throw new RuntimeException(e);
         }
     }
@@ -37,5 +37,5 @@ public abstract class Handler<T extends BaseEvent<?>> implements Runnable {
         this.newEvents = queue;
     }
 
-    abstract Class<T> getEventInterests();
+    public abstract Class<T> getEventInterests();
 }
